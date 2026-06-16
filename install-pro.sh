@@ -32,15 +32,15 @@ test_instances() {
         if [ -z "$inst_num" ] || [ ! -f "$service_file" ]; then continue; fi
         
         # Read the full ExecStart line safely
-        local exec_line=$(grep "ExecStart=" "$service_file" || true)
+        local exec_line=$(grep -e "ExecStart=" "$service_file" || true)
         
-        # Extract the --bind parameter safely using sed/awk instead of grep -P
+        # Extract the --bind parameter safely using sed
         local bind_info=$(echo "$exec_line" | sed -n 's/.*--bind \([^ ]*\).*/\1/p')
         local b_port=$(echo "$bind_info" | cut -d: -f2)
         
-        # Determine Mode
+        # Determine Mode (Using native Bash matching to prevent grep flag errors)
         local mode_str="Local"
-        if echo "$exec_line" | grep -q "--cfon"; then
+        if [[ "$exec_line" == *"--cfon"* ]]; then
             local c_code=$(echo "$exec_line" | sed -n 's/.*--country \([^ ]*\).*/\1/p')
             mode_str="CFON ($c_code)"
         fi
@@ -80,7 +80,7 @@ fi
 echo ""
 echo "--- Step 1: Choose Deployment Mode ---"
 echo "1) Local Instances (Uses '--scan' configuration, NO custom countries)"
-echo "2) Different Countries (Uses '--cfon --country' rotating selection)"
+echo "2) Different Countries (Uses '--scan --cfon --country' rotating selection)"
 echo "3) All Countries (Deploys one instance per country in the list)"
 read -p "Select deployment mode [1-3]: " PROXY_MODE
 
@@ -187,10 +187,10 @@ for (( i=1; i<=INSTANCE_COUNT; i++ )); do
         EXEC_CMD="$BIN_PATH --bind $BIND_IP:$PORT --scan"
         echo "   -> Setting up Local Instance $i | Port: $PORT (--scan)"
     else
-        # Mode 2 & 3: Country deployment using --cfon
+        # Mode 2 & 3: Country deployment using BOTH --scan and --cfon
         COUNTRY_INDEX=$(( (i - 1) % NUM_COUNTRIES ))
         COUNTRY_CODE=${COUNTRIES[$COUNTRY_INDEX]}
-        EXEC_CMD="$BIN_PATH --bind $BIND_IP:$PORT --cfon --country $COUNTRY_CODE"
+        EXEC_CMD="$BIN_PATH --bind $BIND_IP:$PORT --scan --cfon --country $COUNTRY_CODE"
         echo "   -> Setting up Country Instance $i | Port: $PORT | Country: $COUNTRY_CODE"
     fi
     
