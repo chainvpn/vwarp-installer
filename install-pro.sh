@@ -59,7 +59,7 @@ test_instances() {
 }
 
 # --- 1. System Detection ---
-EXISTING_COUNT=$(ls /etc/systemd/system/vwarp*.service 2>/dev/null | wc -l || echo 0)
+EXISTING_COUNT=$(( $(ls /etc/systemd/system/vwarp*.service 2>/dev/null | wc -l) ))
 
 if [ "$EXISTING_COUNT" -gt 0 ]; then
     echo "▶ Detected $EXISTING_COUNT existing Vwarp instance(s) on this system."
@@ -101,7 +101,8 @@ case $PROXY_MODE in
     *)
         echo "❌ Invalid proxy mode selection. Exiting."
         exit 1
-    fi
+        ;;
+esac
 
 if ! [[ "$INSTANCE_COUNT" =~ ^[0-9]+$ ]] || [ "$INSTANCE_COUNT" -le 0 ]; then
     echo "❌ Invalid number of instances. Exiting."
@@ -157,6 +158,13 @@ fi
 
 unzip -o /tmp/$FILENAME -d /tmp/vwarp_ext >/dev/null
 
+# Locate the extracted binary (may be nested in a subdirectory)
+EXTRACTED_BIN=$(find /tmp/vwarp_ext -type f -name "vwarp" | head -1)
+if [ -z "$EXTRACTED_BIN" ]; then
+    echo "❌ Could not locate 'vwarp' binary after extraction."
+    exit 1
+fi
+
 # --- 4. Purge Previous Footprints ---
 if [ "$EXISTING_COUNT" -gt 0 ]; then
     echo "➔ Purging old services and executables..."
@@ -178,7 +186,7 @@ for (( i=1; i<=INSTANCE_COUNT; i++ )); do
     BIN_PATH="/opt/vwarp$i"
     SERVICE_NAME="vwarp$i.service"
     
-    sudo cp /tmp/vwarp_ext/vwarp "$BIN_PATH"
+    sudo cp "$EXTRACTED_BIN" "$BIN_PATH"
     sudo chmod +x "$BIN_PATH"
     
     # Generate ExecStart command based on the selected Mode
@@ -217,6 +225,8 @@ done
 
 echo "➔ Reloading systemd structure and initializing connections..."
 sudo systemctl daemon-reload
+
+sleep 2  # Allow daemon-reload to fully settle before starting services
 
 for (( i=1; i<=INSTANCE_COUNT; i++ )); do
     sudo systemctl restart "vwarp$i.service"
