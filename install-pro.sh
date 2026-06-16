@@ -66,7 +66,7 @@ if [ "$EXISTING_COUNT" -gt 0 ]; then
     echo "1) Fresh Install / Reconfigure Everything"
     echo "2) Test current instances (Check Outbound IPs)"
     echo "3) Exit"
-    read -p "Select an option [1-3]: " MENU_CHOICE
+    read -p "Select an option [1-3]: " MENU_CHOICE </dev/tty
     
     case $MENU_CHOICE in
         2) test_instances; exit 0 ;;
@@ -82,17 +82,17 @@ echo "--- Step 1: Choose Deployment Mode ---"
 echo "1) Local Instances (Uses '--scan' configuration, NO custom countries)"
 echo "2) Different Countries (Uses '--scan --cfon --country' rotating selection)"
 echo "3) All Countries (Deploys one instance per country in the list)"
-read -p "Select deployment mode [1-3]: " PROXY_MODE
+read -p "Select deployment mode [1-3]: " PROXY_MODE </dev/tty
 
 NUM_COUNTRIES=${#COUNTRIES[@]}
 INSTANCE_COUNT=0
 
 case $PROXY_MODE in
     1)
-        read -p "How many Local instances do you want to build? (e.g., 10): " INSTANCE_COUNT
+        read -p "How many Local instances do you want to build? (e.g., 10): " INSTANCE_COUNT </dev/tty
         ;;
     2)
-        read -p "How many Country instances do you want to build? (e.g., 10): " INSTANCE_COUNT
+        read -p "How many Country instances do you want to build? (e.g., 10): " INSTANCE_COUNT </dev/tty
         ;;
     3)
         INSTANCE_COUNT=$NUM_COUNTRIES
@@ -111,7 +111,7 @@ fi
 
 echo ""
 echo "--- Step 2: Define Network Bind Target ---"
-read -p "Enter local Bind IP address (Default: 127.0.0.1, use 0.0.0.0 to expose publicly): " BIND_IP
+read -p "Enter local Bind IP address (Default: 127.0.0.1, use 0.0.0.0 to expose publicly): " BIND_IP </dev/tty
 if [ -z "$BIND_IP" ]; then
     BIND_IP="127.0.0.1"
 fi
@@ -138,7 +138,7 @@ fi
 
 if [ -z "$LATEST_TAG" ] || [ "$LATEST_TAG" = "latest" ]; then
     echo "⚠️  GitHub API connection timed out."
-    read -p "Please manually enter the Vwarp version tag (e.g., v2.2.2): " LATEST_TAG
+    read -p "Please manually enter the Vwarp version tag (e.g., v2.2.2): " LATEST_TAG </dev/tty
 fi
 
 FILENAME="vwarp_linux-${BIN_ARCH}.zip"
