@@ -22,4 +22,4 @@ Please visit the [official Vwarp repository](https://github.com/voidr3aper-anon/
 To install or update Vwarp, run the following command as root or a user with `sudo` privileges:
 
 ```bash
-curl -sL [https://raw.githubusercontent.com/chainvpn/vwarp-installer/main/install.sh](https://raw.githubusercontent.com/chainvpn/vwarp-installer/main/install.sh) | sudo bash
+curl -sL https://raw.githubusercontent.com/chainvpn/vwarp-installer/main/install.sh | sudo bash
