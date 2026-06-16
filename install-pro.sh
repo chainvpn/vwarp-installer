@@ -49,7 +49,7 @@ test_instances() {
         if systemctl is-active --quiet "$s_name"; then
             local status_msg="RUNNING"
             # Test external IP via SOCKS5 proxy (5s timeout)
-            local exit_ip=$(curl --connect-timeout 5 -s --socks5-hostname "127.0.0.1:$b_port" https://ifconfig.io || echo "TIMEOUT/FAILED")
+            local exit_ip=$(curl --connect-timeout 15 -s --socks5-hostname "127.0.0.1:$b_port" https://ifconfig.io || echo "TIMEOUT/FAILED")
             echo -e "vwarp$inst_num\t$b_port\t$mode_str\t$status_msg\t$exit_ip"
         else
             echo -e "vwarp$inst_num\t$b_port\t$mode_str\tSTOPPED\t---"
@@ -176,6 +176,7 @@ if [ "$EXISTING_COUNT" -gt 0 ]; then
         fi
     done
     sudo rm -f /opt/vwarp[0-9]*
+    sudo rm -rf /var/cache/vwarp[0-9]*
 fi
 
 # --- 5. Instance Generation Loop ---
@@ -186,6 +187,7 @@ for (( i=1; i<=INSTANCE_COUNT; i++ )); do
     BIN_PATH="/opt/vwarp$i"
     SERVICE_NAME="vwarp$i.service"
     
+    sudo mkdir -p "/var/cache/vwarp$i"
     sudo cp "$EXTRACTED_BIN" "$BIN_PATH"
     sudo chmod +x "$BIN_PATH"
     
@@ -198,7 +200,7 @@ for (( i=1; i<=INSTANCE_COUNT; i++ )); do
         # Mode 2 & 3: Psiphon country routing (--scan is not used with --cfon)
         COUNTRY_INDEX=$(( (i - 1) % NUM_COUNTRIES ))
         COUNTRY_CODE=${COUNTRIES[$COUNTRY_INDEX]}
-        EXEC_CMD="$BIN_PATH --bind $BIND_IP:$PORT --cfon --country $COUNTRY_CODE"
+        EXEC_CMD="$BIN_PATH --bind $BIND_IP:$PORT --cfon --country $COUNTRY_CODE --cache-dir /var/cache/vwarp$i"
         echo "   -> Setting up Country Instance $i | Port: $PORT | Country: $COUNTRY_CODE"
     fi
     
@@ -259,6 +261,6 @@ echo "=================================================="
 echo ""
 
 # --- 6. Automated Status/IP Testing Matrix ---
-echo "➔ Pausing 20 seconds for proxy initialization (scan + connect)..."
-sleep 20
+echo "➔ Pausing 60 seconds for Psiphon tunnel negotiation..."
+sleep 60
 test_instances
