@@ -25,7 +25,7 @@ test_instances() {
     echo -e "Instance\tPort\tMode\t\tStatus\t\tOutbound IP"
     echo "----------------------------------------------------------------------"
     
-    for service_file in /etc/systemd/system/vwarp*.service; do
+    for service_file in $(ls /etc/systemd/system/vwarp*.service 2>/dev/null | sort -t p -k2 -V); do
         local s_name=$(basename "$service_file")
         local inst_num=$(echo "$s_name" | sed 's/[^0-9]//g')
         
@@ -39,7 +39,7 @@ test_instances() {
         local b_port=$(echo "$bind_info" | cut -d: -f2)
         
         # Determine Mode (Using native Bash matching to prevent grep flag errors)
-        local mode_str="Local"
+        local mode_str="WARP+Scan"
         if [[ "$exec_line" == *"--cfon"* ]]; then
             local c_code=$(echo "$exec_line" | sed -n 's/.*--country \([^ ]*\).*/\1/p')
             mode_str="CFON ($c_code)"
@@ -79,9 +79,9 @@ fi
 # --- 2. Step-by-Step Configuration Flow ---
 echo ""
 echo "--- Step 1: Choose Deployment Mode ---"
-echo "1) Local Instances (Uses '--scan' configuration, NO custom countries)"
-echo "2) Different Countries (Uses '--scan --cfon --country' rotating selection)"
-echo "3) All Countries (Deploys one instance per country in the list)"
+echo "1) Local Instances (plain WARP with --scan endpoint discovery)"
+echo "2) Different Countries (Psiphon routing via --cfon --country, rotating)"
+echo "3) All Countries (one instance per country in the list)"
 read -p "Select deployment mode [1-3]: " PROXY_MODE </dev/tty
 
 NUM_COUNTRIES=${#COUNTRIES[@]}
@@ -191,14 +191,14 @@ for (( i=1; i<=INSTANCE_COUNT; i++ )); do
     
     # Generate ExecStart command based on the selected Mode
     if [ "$PROXY_MODE" -eq 1 ]; then
-        # Mode 1: Local --scan deployment
+        # Mode 1: Plain WARP with endpoint scanning
         EXEC_CMD="$BIN_PATH --bind $BIND_IP:$PORT --scan"
-        echo "   -> Setting up Local Instance $i | Port: $PORT (--scan)"
+        echo "   -> Setting up Local Instance $i | Port: $PORT"
     else
-        # Mode 2 & 3: Country deployment using BOTH --scan and --cfon
+        # Mode 2 & 3: Psiphon country routing (--scan is not used with --cfon)
         COUNTRY_INDEX=$(( (i - 1) % NUM_COUNTRIES ))
         COUNTRY_CODE=${COUNTRIES[$COUNTRY_INDEX]}
-        EXEC_CMD="$BIN_PATH --bind $BIND_IP:$PORT --scan --cfon --country $COUNTRY_CODE"
+        EXEC_CMD="$BIN_PATH --bind $BIND_IP:$PORT --cfon --country $COUNTRY_CODE"
         echo "   -> Setting up Country Instance $i | Port: $PORT | Country: $COUNTRY_CODE"
     fi
     
@@ -230,6 +230,23 @@ sleep 2  # Allow daemon-reload to fully settle before starting services
 
 for (( i=1; i<=INSTANCE_COUNT; i++ )); do
     sudo systemctl restart "vwarp$i.service"
+    # Brief stagger to avoid thundering-herd on startup
+    sleep 0.2
+done
+
+# Validate each service actually started; retry once if not
+echo "➔ Validating service startup..."
+for (( i=1; i<=INSTANCE_COUNT; i++ )); do
+    if ! systemctl is-active --quiet "vwarp$i.service"; then
+        echo "   ⚠️  vwarp$i failed to start — retrying..."
+        sudo systemctl restart "vwarp$i.service"
+        sleep 2
+        if ! systemctl is-active --quiet "vwarp$i.service"; then
+            echo "   ❌ vwarp$i still failed. Check: journalctl -u vwarp$i.service"
+        else
+            echo "   ✅ vwarp$i recovered on retry."
+        fi
+    fi
 done
 
 rm -rf /tmp/$FILENAME /tmp/vwarp_ext
@@ -242,6 +259,6 @@ echo "=================================================="
 echo ""
 
 # --- 6. Automated Status/IP Testing Matrix ---
-echo "➔ Pausing 5 seconds for proxy initialization..."
-sleep 5
+echo "➔ Pausing 20 seconds for proxy initialization (scan + connect)..."
+sleep 20
 test_instances
